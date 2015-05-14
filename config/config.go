@@ -69,6 +69,12 @@ var (
 	DefaultDNSSDConfig = DefaultedDNSSDConfig{
 		RefreshInterval: Duration(30 * time.Second),
 	}
+
+	// The default Consul SD configuration.
+	DefaultConsulSDConfig = DefaultedConsulSDConfig{
+		TagSeparator: ",",
+		Scheme:       "http",
+	}
 )
 
 // Config is the top-level configuration for Prometheus's config files.
@@ -187,6 +193,8 @@ type DefaultedScrapeConfig struct {
 	TargetGroups []*TargetGroup `yaml:"target_groups,omitempty"`
 	// List of DNS service discovery configurations.
 	DNSSDConfigs []*DNSSDConfig `yaml:"dns_sd_configs,omitempty"`
+	// List of Consul service discovery configurations.
+	ConsulSDConfigs []*ConsulSDConfig `yaml:"consul_sd_configs,omitempty"`
 	// List of relabel configurations.
 	RelabelConfigs []*RelabelConfig `yaml:"relabel_configs,omitempty"`
 }
@@ -267,6 +275,40 @@ func (c *DNSSDConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 type DefaultedDNSSDConfig struct {
 	Names           []string `yaml:"names"`
 	RefreshInterval Duration `yaml:"refresh_interval,omitempty"`
+}
+
+// ConsulSDConfig is the configuration for Consul service discovery.
+type ConsulSDConfig struct {
+	// DefaultedConsulSDConfig contains the actual fields for ConsulSDConfig.
+	DefaultedConsulSDConfig `yaml:",inline"`
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaller interface.
+func (c *ConsulSDConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	c.DefaultedConsulSDConfig = DefaultConsulSDConfig
+	err := unmarshal(&c.DefaultedConsulSDConfig)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(c.Server) == "" {
+		return fmt.Errorf("Consul SD configuration requires a server address")
+	}
+	if len(c.Services) == 0 {
+		return fmt.Errorf("Consul SD configuration requires at least one service name")
+	}
+	return nil
+}
+
+// DefaultedConsulSDConfig is a proxy type for ConsulSDConfig.
+type DefaultedConsulSDConfig struct {
+	Server       string   `yaml:"server"`
+	Token        string   `yaml:"token"`
+	Datacenter   string   `yaml:"datacenter"`
+	TagSeparator string   `yaml:"tag_separator"`
+	Scheme       string   `yaml:"scheme"`
+	Username     string   `yaml:"username"`
+	Password     string   `yaml:"password"`
+	Services     []string `yaml:"services"`
 }
 
 // RelabelAction is the action to be performed on relabeling.
